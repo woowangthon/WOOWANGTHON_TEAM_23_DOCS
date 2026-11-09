@@ -35,7 +35,7 @@ FE(안드로이드) ──[FE↔BE API]──> BE ──[BE↔AI API]──> AI 
 | 413 | `file_too_large` | 파일당 20MB 또는 100쪽(슬라이드) 초과 |
 | 415 | `unsupported_file` | 텍스트를 뽑을 수 없는 파일. 스캔본 PDF, 글자 없는 슬라이드만 있는 PPTX, PDF·PPTX 외 형식 |
 | 429 | `too_many_materials` | 동시 처리 자료 5개 초과. 잠시 뒤 다시 시도하면 됨 |
-| 429 | `rate_limited` | 기기 ID별 횟수 제한 초과 (업로드 하루 10개, LLM 채점 하루 100회, 전체 생성 대기열 상한). 한도가 풀릴 때까지 다시 시도해도 소용없음 |
+| 429 | `rate_limited` | 기기 ID별 횟수 제한 초과 (업로드 하루 10개, 전체 생성 대기열 상한). 한도가 풀릴 때까지 다시 시도해도 소용없음 |
 | 502 | `llm_unavailable` | 로컬·유료 모델 모두 실패 |
 
 ## 데이터 모양
@@ -65,8 +65,8 @@ AI 레포(`app/prompts.py`)가 만드는 형식을 그대로 따름. 여기에 B
 | `materialId` | string | 출처 자료 |
 | `type` | `"ox"` \| `"short"` | OX 또는 단답. 객관식 없음 |
 | `question` | string | 문제 문장. OX는 서술문이고 물음표를 쓰지 않음 |
-| `answer` | string | OX는 `"O"` 또는 `"X"`만 허용. 단답은 정답 용어 |
-| `accepted` | string[] | 단답 허용 답안. OX는 빈 배열 |
+| `answer` | string | OX는 `"O"` 또는 `"X"`만 허용. 단답은 명사 하나이며 공백 제외 10자 이내 |
+| `accepted` | string[] | 단답 허용 답안. 같은 대상의 다른 이름(정식 명칭, 줄임말, 영어 이름 등)을 넣음. 띄어쓰기·대소문자 차이는 비교할 때 무시하므로 넣지 않음. OX는 빈 배열 |
 | `evidence` | string | 원문에서 글자 그대로 가져온 근거 문장. 해설·오답노트에서만 표시 |
 | `page` | number \| null | 원문 쪽수. PPTX는 슬라이드 번호. AI는 쪽수를 다루지 않고, BE가 근거 문장을 쪽(슬라이드)별 원문에서 찾아 붙임. 찾지 못하면 `null`. 해설과 오답노트에 표시 |
 
@@ -93,7 +93,7 @@ AI 레포(`app/prompts.py`)가 만드는 형식을 그대로 따름. 여기에 B
 | `/api/v1/materials` | GET | - | `{ "materials": [Material] }` | BE |
 | `/api/v1/materials/{id}` | DELETE | - | `204` (자료와 파생 문제 삭제) | BE |
 | `/api/v1/questions` | GET | 쿼리 `since`(선택, ISO 시각) | `{ "questions": [Question], "serverTime": "..." }` 기기에 내려받을 문제. `since` 이후 새로 생긴 것만. 틀린 문제를 다시 내려주지 않음 | BE |
-| `/api/v1/questions/{id}/grade` | POST | `{ "userAnswer": "페이징" }` (단답만). 기기에서 `accepted`와 먼저 비교(공백·대소문자 무시)하고 다를 때만 호출함. 오프라인이면 기기에 저장해 두었다가 연결되면 호출 | `{ "correct": true, "by": "rule" }` | BE → AI |
+| `/api/v1/questions/{id}/grade` | POST | `{ "userAnswer": "페이징" }` (단답만). AI를 부르지 않고 `answer`와 `accepted`에 글자로만 비교함(공백·대소문자 무시). 기기 채점과 결과가 같으므로 FE는 호출하지 않아도 되고, 호환을 위해 남겨 둠 | `{ "correct": true, "by": "rule" }` `by`는 항상 `rule` | BE |
 | `/api/v1/answers` | POST | `{ "answers": [Answer] }` 배치 | `{ "recorded": 3 }` | BE |
 | `/api/v1/review` | GET | - | `{ "items": [ReviewItem] }` 오답노트 | BE |
 | `/api/v1/questions/{id}/report` | POST | `{ "reason": "wrong_answer" }` | `204` | BE |
@@ -152,7 +152,6 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 |---|---|---|---|---|
 | `/internal/v1/generate` | POST | `{ "text": "..." }` 약 2000자 조각 1개. 쪽수는 받지 않음 | `{ "questions": [GeneratedQuestion], "provider": "ollama", "discarded": 1 }` | AI |
 | `/internal/v1/verify` | POST | `{ "question": GeneratedQuestion, "source": "..." }` | `{ "supported": true, "reason": "..." }` 근거만 보고 다시 풀어 정답 비교 | AI |
-| `/internal/v1/grade` | POST | `{ "question": "...", "answer": "...", "accepted": [..], "userAnswer": "..." }` | `{ "correct": true, "by": "rule" }` 허용 답안에 있으면 LLM을 부르지 않고 `rule` | AI |
 | `/internal/v1/advice` | POST | `{ "facts": { ... }, "suggestion": { ... } }` 규칙이 정한 사실과 수치 | `{ "message": "...", "fallback": false }` | AI |
 | `/internal/v1/health` | GET | - | `{ "ok": true, "provider": "ollama" }` 폴백 전환 판단용 | AI |
 
@@ -161,6 +160,7 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 규칙
 
 - `generate`: 근거 문장이 없거나 원문에 없는 문제는 AI가 버리고, 버린 개수를 `discarded`로 알림
+- `generate`: 단답 정답은 명사 하나, 공백 제외 10자 이내로 만들고 같은 대상의 다른 이름을 `accepted`에 넣음. 길거나 문장형인 단답은 자동 검사에서 버림 (단답 채점에 LLM을 쓰지 않으므로 출제 단계에서 정함)
 - `advice`: 문장 속 숫자가 입력과 다르면 AI가 폐기하고 수치만 나열한 고정 문장을 `fallback: true`로 돌려줌
 - 모델 우선순위: 로컬 Ollama(기본 qwen3.5:9b) → 실패 시 OpenAI 유료 API (조건부, 의사결정 로그 참고. 키 없음, 미적용)
 
@@ -171,21 +171,21 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 2. BE  POST /internal/generate (조각) → AI: 문제 생성·검사 → BE: 근거 문장으로 쪽수를 찾아 붙여 저장 (자료별로 번갈아 처리)
 3. FE  GET /materials                 → 진행 상태 표시
 4. FE  GET /questions                 → 기기에 문제 저장 (이후 카드는 오프라인으로 표시)
-5. FE  카드 표시, 풀이                → 단답은 기기에서 먼저 채점, 재출제는 기기가 계산. 결과는 POST /answers 로 전송 (모아서 배치)
+5. FE  카드 표시, 풀이                → 단답은 기기에서 글자 비교로 채점(서버 호출 없음), 재출제는 기기가 계산. 결과는 POST /answers 로 전송 (모아서 배치)
 6. FE  하루 1회 POST /usage/daily, GET /advice/today
 ```
 
 ## 확정한 것 (2026-11-04, BE·AI 담당 결정)
 
-BE #4, AI #10, DOCS #4 리뷰에서 정한 내용이며, 위 본문에 반영함.
+BE #4, AI #10, DOCS #4 리뷰에서 정한 내용이며, 위 본문에 반영함. 2번은 2026-11-08에 바뀌었고, 5번에서 LLM 채점 횟수 제한이 빠짐.
 
 | 항목 | 결정 |
 |---|---|
 | 1. `page` 필드 | AI는 바꾸지 않음. BE가 근거 문장을 쪽별 텍스트에서 찾아 붙임. `generate` 요청에서 `page`를 뺌 |
-| 2. 단답 채점 위치 | 기기에서 `accepted`와 먼저 비교(공백·대소문자 무시), 다를 때만 `/grade` 호출. 오프라인이면 저장했다가 연결되면 채점 |
+| 2. 단답 채점 위치 | 기기에서 `answer`와 `accepted`를 글자로 비교(공백·대소문자 무시)한 결과가 최종 채점임. 단답 채점에 LLM을 쓰지 않기로 함 (2026-11-08, BE·AI 결정). 서버 `/grade`는 호환용으로 남기고 같은 비교만 함. 이전 결정은 "다를 때만 `/grade` 호출, 오프라인이면 저장했다가 채점"이었음 |
 | 3. 삭제·재출제 | `deletedIds`는 지금 넣지 않음. 자료 삭제와 신고는 기기에서 시작하므로 기기가 직접 지움. BE가 문제를 지우는 기능이 생기면 추가. 재출제는 기기가 계산 (FE #14) |
 | 4. 파일 상한 | 파일당 20MB, 100쪽(슬라이드), 동시 처리 자료 5개. 30장 자료 약 1분, 100쪽 자료 3~4분이면 생성이 끝남 (조각당 약 4초 기준) |
-| 5. 인증·남용 방지 | 구글 로그인(BE #5, FE #12) 전까지 기기 ID별 횟수 제한. 업로드 하루 10개, LLM 채점 하루 100회, 전체 생성 대기열 상한. 초과 시 `429 rate_limited` |
+| 5. 인증·남용 방지 | 구글 로그인(BE #5, FE #12) 전까지 기기 ID별 횟수 제한. 업로드 하루 10개, 전체 생성 대기열 상한. 초과 시 `429 rate_limited` (LLM 채점 하루 100회 제한은 채점에서 LLM을 빼면서 삭제) |
 | 6. 웹 체험판 | 만들지 않기로 함 (2026-11-06, FE 담당 결정). 같은 API와 같은 횟수 제한을 쓰고 `[샘플]`로 표기한다는 앞선 결정은 적용하지 않음 |
 | 7. 배포 | BE와 AI를 같은 Mac에 두고 터널로 고정 주소를 공개함. 모델이 이 Mac에서만 돌기 때문. 만든 문제는 BE DB에 남아 Mac이 잠시 꺼져도 기존 자료는 사용 가능. 심사 종료까지 Mac 상시 가동이 필요함. 터널 도구는 배포 시 정함 |
 
