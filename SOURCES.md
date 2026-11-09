@@ -17,8 +17,13 @@
 | OkHttp MockWebServer 5.5.1 | 서버 응답 단위 테스트 (테스트 전용) | FE | https://square.github.io/okhttp/ | Apache-2.0 |
 | JUnit 4.13.2 | 단위 테스트 (테스트 전용) | FE | https://junit.org/junit4/ | EPL-1.0 |
 | uv | Python 패키지·가상환경 관리 | AI | https://github.com/astral-sh/uv | Apache-2.0 (GitHub 표기) |
-| httpx | LLM 호출용 HTTP 클라이언트 | AI | https://www.python-httpx.org | BSD-3-Clause |
-| pypdf | PDF 텍스트 추출 | AI | https://pypdf.readthedocs.io | BSD-3-Clause |
+| httpx | LLM 호출(AI), AI 서비스 호출(BE)용 HTTP 클라이언트 | BE, AI | https://www.python-httpx.org | BSD-3-Clause |
+| pypdf | PDF 텍스트 추출. BE가 업로드 파일에서 추출하고, AI는 평가 도구에서만 씀 | BE, AI | https://pypdf.readthedocs.io | BSD-3-Clause |
+| FastAPI 0.162.2 | API 서버 | BE, AI | https://fastapi.tiangolo.com | MIT |
+| Uvicorn 0.54.0 | API 서버 실행 | BE, AI | https://www.uvicorn.org | BSD-3-Clause |
+| python-multipart 0.0.33 | 파일 업로드(multipart) 받기 | BE | https://github.com/Kludex/python-multipart | Apache-2.0 |
+| python-pptx 1.0.2 | PPTX 슬라이드 글자 추출 | BE | https://github.com/scanny/python-pptx | MIT |
+| pytest 9.2.0 | 단위 테스트 (테스트 전용) | BE, AI | https://docs.pytest.org | MIT |
 | Ollama | 로컬 모델 실행 (개발·평가) | AI | https://ollama.com | MIT |
 | Qwen3.5 (4b, 9b) | 문제 생성 모델 후보 | AI | https://ollama.com/library/qwen3.5 | 확인 필요 |
 | Gemma 3 (4b, 12b) | 문제 생성 모델 후보 | AI | https://ollama.com/library/gemma3 | Gemma Terms of Use (https://ai.google.dev/gemma/terms) |
@@ -26,3 +31,7 @@
 | 한국어 위키백과 「운영체제」 | 평가용 샘플 입력 | AI | https://ko.wikipedia.org/w/index.php?title=운영체제&oldid=42489093 | CC BY-SA 4.0 |
 | 한국어 위키백과 「관계형 데이터베이스」 | 평가용 샘플 입력 | AI | https://ko.wikipedia.org/w/index.php?title=관계형_데이터베이스&oldid=42532633 | CC BY-SA 4.0 |
 | 한국어 위키백과 「미분」 | 평가용 샘플 입력 | AI | https://ko.wikipedia.org/w/index.php?title=미분&oldid=42583243 | CC BY-SA 4.0 |
+| 한국어 위키백과 「음주 운전」 | 학습에 쓰지 않은 평가용 샘플 입력 | AI | https://ko.wikipedia.org/w/index.php?title=음주_운전&oldid=41116109 | CC BY-SA 4.0 |
+| Qwen3 1.7B·4B | 소형 모델 학습 실험 대상. 실험을 종료했고 채택하지 않음 | AI (실험, 레포에 포함하지 않음) | https://huggingface.co/Qwen | Apache-2.0 (모델 카드 확인 필요) |
+
+학습 실험에 쓴 한국어 위키백과 문서 55개의 제목과 버전(revid) 목록은 AI 레포 로컬에만 있음. 학습 코드와 학습한 모델은 레포에 넣지 않음. 필요하면 목록을 별도 파일로 정리해 전달함 (AI #8).
