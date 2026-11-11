@@ -24,6 +24,7 @@
 | python-multipart 0.0.33 | 파일 업로드(multipart) 받기 | BE | https://github.com/Kludex/python-multipart | Apache-2.0 |
 | python-pptx 1.0.2 | PPTX 슬라이드 글자 추출 | BE | https://github.com/scanny/python-pptx | MIT |
 | pytest 9.2.0 | 단위 테스트 (테스트 전용) | BE, AI | https://docs.pytest.org | MIT |
+| Tailscale (Funnel) | BE 서버(Mac)를 고정 https 주소로 공개하는 터널. BE 포트만 공개함 | BE (배포 환경) | https://tailscale.com | 클라이언트 BSD-3-Clause (GitHub tailscale/tailscale 표기, 확인 필요). 서비스는 Personal 무료 플랜 약관(비상업 용도) |
 | Ollama | 로컬 모델 실행 (개발·평가) | AI | https://ollama.com | MIT |
 | Qwen3.5 (4b, 9b) | 문제 생성 모델 후보 | AI | https://ollama.com/library/qwen3.5 | 확인 필요 |
 | Gemma 3 (4b, 12b) | 문제 생성 모델 후보 | AI | https://ollama.com/library/gemma3 | Gemma Terms of Use (https://ai.google.dev/gemma/terms) |
