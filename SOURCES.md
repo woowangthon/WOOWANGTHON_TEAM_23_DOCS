@@ -34,10 +34,10 @@
 | 한국어 위키백과 「관계형 데이터베이스」 | 평가용 샘플 입력 | AI | https://ko.wikipedia.org/w/index.php?title=관계형_데이터베이스&oldid=42532633 | CC BY-SA 4.0 |
 | 한국어 위키백과 「미분」 | 평가용 샘플 입력 | AI | https://ko.wikipedia.org/w/index.php?title=미분&oldid=42583243 | CC BY-SA 4.0 |
 | 한국어 위키백과 「음주 운전」 | 학습에 쓰지 않은 평가용 샘플 입력 | AI | https://ko.wikipedia.org/w/index.php?title=음주_운전&oldid=41116109 | CC BY-SA 4.0 |
-| 한국어 위키백과 「광합성」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(레포에 포함하지 않음) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EA%B4%91%ED%95%A9%EC%84%B1&oldid=42725227 | CC BY-SA 4.0 |
-| 한국어 위키백과 「임진왜란」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(레포에 포함하지 않음) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EC%9E%84%EC%A7%84%EC%99%9C%EB%9E%80&oldid=42391845 | CC BY-SA 4.0 |
-| 한국어 위키백과 「수요와 공급」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(레포에 포함하지 않음) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EC%88%98%EC%9A%94%EC%99%80%20%EA%B3%B5%EA%B8%89&oldid=42656812 | CC BY-SA 4.0 |
-| 한국어 위키백과 「자동차 운전면허」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(레포에 포함하지 않음) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EC%9A%B4%EC%A0%84%EB%A9%B4%ED%97%88&oldid=42747680 | CC BY-SA 4.0 |
+| 한국어 위키백과 「광합성」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(DOCS `test-materials/`) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EA%B4%91%ED%95%A9%EC%84%B1&oldid=42725227 | CC BY-SA 4.0 |
+| 한국어 위키백과 「임진왜란」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(DOCS `test-materials/`) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EC%9E%84%EC%A7%84%EC%99%9C%EB%9E%80&oldid=42391845 | CC BY-SA 4.0 |
+| 한국어 위키백과 「수요와 공급」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(DOCS `test-materials/`) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EC%88%98%EC%9A%94%EC%99%80%20%EA%B3%B5%EA%B8%89&oldid=42656812 | CC BY-SA 4.0 |
+| 한국어 위키백과 「자동차 운전면허」 | 시연·테스트용 샘플 학습 자료. 앞부분 약 7,000자를 PDF로 옮김(DOCS `test-materials/`) | 시연 | https://ko.wikipedia.org/w/index.php?title=%EC%9E%90%EB%8F%99%EC%B0%A8%20%EC%9A%B4%EC%A0%84%EB%A9%B4%ED%97%88&oldid=42747680 | CC BY-SA 4.0 |
 | Qwen3 1.7B·4B | 소형 모델 학습 실험 대상. 실험을 종료했고 채택하지 않음 | AI (실험, 레포에 포함하지 않음) | https://huggingface.co/Qwen | Apache-2.0 (모델 카드 확인 필요) |
 
 학습 실험에 쓴 한국어 위키백과 문서 55개의 제목과 버전(revid) 목록은 AI 레포 로컬에만 있음. 학습 코드와 학습한 모델은 레포에 넣지 않음. 필요하면 목록을 별도 파일로 정리해 전달함 (AI #8).
