@@ -67,8 +67,8 @@ AI 레포(`app/prompts.py`)가 만드는 형식을 그대로 따름. 여기에 B
 | `question` | string | 문제 문장. OX는 서술문이고 물음표를 쓰지 않음 |
 | `answer` | string | OX는 `"O"` 또는 `"X"`만 허용. 단답은 명사 하나로 출제함(프롬프트 지시). 공백 제외 10자 초과나 문장 종결(~다)은 AI의 자동 검사에서 버리고, 명사인지는 검사하지 않음 |
 | `accepted` | string[] | 단답 허용 답안. 같은 대상의 다른 이름(정식 명칭, 줄임말, 영어 이름 등)을 넣음. 띄어쓰기·대소문자 차이는 비교할 때 무시하므로 넣지 않음. OX는 빈 배열 |
-| `evidence` | string | 원문에서 글자 그대로 가져온 근거 문장. 해설·오답노트에서만 표시 |
-| `page` | number \| null | 원문 쪽수. PPTX는 슬라이드 번호. AI는 쪽수를 다루지 않고, BE가 근거 문장을 쪽(슬라이드)별 원문에서 찾아 붙임. 찾지 못하면 `null`. 해설과 오답노트에 표시 |
+| `evidence` | string | 원문에서 글자 그대로 가져온 근거 문장. 앱에는 표시하지 않고, AI 자동 검사(원문 대조)와 BE의 쪽수 찾기에 씀 |
+| `page` | number \| null | 원문 쪽수. PPTX는 슬라이드 번호. AI는 쪽수를 다루지 않고, BE가 근거 문장을 쪽(슬라이드)별 원문에서 찾아 붙임. 찾지 못하면 `null` |
 
 ### Material (자료)
 
@@ -95,10 +95,7 @@ AI 레포(`app/prompts.py`)가 만드는 형식을 그대로 따름. 여기에 B
 | `/api/v1/questions` | GET | 쿼리 `since`(선택, ISO 시각) | `{ "questions": [Question], "serverTime": "..." }` 기기에 내려받을 문제. `since` 이후 새로 생긴 것만. 틀린 문제를 다시 내려주지 않음 | BE |
 | `/api/v1/questions/{id}/grade` | POST | `{ "userAnswer": "페이징" }` (단답만). AI를 부르지 않고 `answer`와 `accepted`에 글자로만 비교함(공백·대소문자 무시). 기기 채점과 결과가 같으므로 FE는 호출하지 않아도 되고, 호환을 위해 남겨 둠 | `{ "correct": true, "by": "rule" }` `by`는 항상 `rule` | BE |
 | `/api/v1/answers` | POST | `{ "answers": [Answer] }` 배치. 한 번에 200개까지. 같은 `questionId`와 `answeredAt`의 기록은 한 번만 받으므로 전체를 다시 보내도 됨 | `{ "recorded": 3 }` (이미 받은 기록은 세지 않음) | BE |
-| `/api/v1/review` | GET | - | `{ "items": [ReviewItem] }` 오답노트 | BE |
 | `/api/v1/questions/{id}/report` | POST | `{ "reason": "wrong_answer" }` | `204` | BE |
-| `/api/v1/usage/daily` | POST | `{ "days": [UsageDay] }` | `{ "recorded": 1 }` | BE |
-| `/api/v1/advice/today` | GET | - | `{ "message": "...", "suggestion": { "label": "...", "action": "..." } \| null }` | BE → AI |
 
 ### Answer (풀이 기록)
 
@@ -110,39 +107,7 @@ AI 레포(`app/prompts.py`)가 만드는 형식을 그대로 따름. 여기에 B
 }
 ```
 
-`result`: `correct` / `wrong` / `skipped`. 풀이 기록은 오답노트와 통계용으로만 받음. 틀린 문제를 언제 다시 낼지는 기기가 풀이 기록으로 계산하고(FE #14), BE는 틀린 문제를 `GET /questions`에 다시 내려주지 않음.
-
-### ReviewItem (오답노트 항목)
-
-```json
-{
-  "question": { "...": "Question" },
-  "wrongCount": 2,
-  "lastWrongAt": "2026-11-03T21:30:00+09:00"
-}
-```
-
-### UsageDay (시청 기록 일별 집계)
-
-기기에 저장한 원본 기록에서 **일별 합계만** 보냄. 영상 제목·채널·댓글·계정은 보내지 않고 수집하지도 않음.
-
-```json
-{
-  "date": "2026-11-03",
-  "sessionCount": 4,
-  "totalMinutes": 38,
-  "swipes": 210,
-  "cardsShown": 21,
-  "cardsAnswered": 15,
-  "cardsSkipped": 6,
-  "correct": 11,
-  "lateNightShare": 0.42,
-  "sessionLengthBuckets": { "lt5": 1, "5to10": 2, "10to20": 1, "gte20": 0 }
-}
-```
-
-- `lateNightShare`: 밤 12시 이후 시청 비중 (0~1)
-- 조언을 **할지, 무슨 내용인지**는 BE가 이 수치의 규칙으로 정하고, AI는 그 사실을 동료 말투 문장으로만 바꿈
+`result`: `correct` / `wrong` / `skipped`. 풀이 기록은 새 문제 채우기(아래 규칙)에 씀. 틀린 문제를 언제 다시 낼지는 기기가 풀이 기록으로 계산하고(FE #14), BE는 틀린 문제를 `GET /questions`에 다시 내려주지 않음.
 
 ## BE ↔ AI (내부)
 
@@ -150,10 +115,9 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 
 | 엔드포인트 | 메서드 | 요청 | 응답 | 담당 |
 |---|---|---|---|---|
-| `/internal/v1/generate` | POST | `{ "text": "...", "avoid": ["이미 낸 문제 글자", ...] }` 약 2000자 조각 1개. `avoid`는 선택이며 같은 문제는 응답에서 뺌. 쪽수는 받지 않음 | `{ "questions": [GeneratedQuestion], "provider": "ollama", "discarded": 1 }` | AI |
+| `/internal/v1/generate` | POST | `{ "text": "...", "avoid": ["이미 낸 문제 글자", ...] }` 약 2000자 조각 1개. `avoid`는 선택이며 같은 문제는 응답에서 뺌. 쪽수는 받지 않음 | `{ "questions": [GeneratedQuestion], "provider": "openai", "discarded": 1 }` | AI |
 | `/internal/v1/verify` | POST | `{ "question": GeneratedQuestion, "source": "..." }` | `{ "supported": true, "reason": "..." }` 근거만 보고 다시 풀어 정답 비교 | AI |
-| `/internal/v1/advice` | POST | `{ "facts": { ... }, "suggestion": { ... } }` 규칙이 정한 사실과 수치 | `{ "message": "...", "fallback": false }` | AI |
-| `/internal/v1/health` | GET | - | `{ "ok": true, "provider": "ollama" }` 폴백 전환 판단용 | AI |
+| `/internal/v1/health` | GET | - | `{ "ok": true, "provider": "openai" }` | AI |
 
 `GeneratedQuestion`은 위 Question에서 `id`, `materialId`, `page`를 뺀 것. BE가 저장할 때 `evidence`를 쪽(슬라이드)별 원문에서 찾아 `page`를 붙임.
 
@@ -163,7 +127,7 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 - 새 문제 채우기: `POST /api/v1/answers`로 풀이 기록을 받으면 BE가 그 문제의 자료에서 한 번도 안 푼 문제가 5개 미만일 때 새 문제를 만들어 채움. 자료 하나에 최대 10번까지 채우고, 이미 낸 문제와 같은 내용은 피함. 새 문제는 `GET /questions?since=`로 내려가며 앱이 받는 시점은 다음 동기화(15분 주기 또는 앱을 다시 열 때)임. 기록을 보내지 않으면 아무 일도 일어나지 않음
 - `generate`: 근거 문장이 없거나 원문에 없는 문제는 AI가 버리고, 버린 개수를 `discarded`로 알림
 - `generate`: 단답 정답은 명사 하나로 출제하고(프롬프트 지시) 같은 대상의 다른 이름을 `accepted`에 넣음. 공백 제외 10자 초과나 문장 종결(~다)인 단답은 자동 검사에서 버림. 명사인지는 검사하지 않음 (단답 채점에 LLM을 쓰지 않으므로 출제 단계에서 정함)
-- `advice`: 문장 속 숫자가 입력과 다르면 AI가 폐기하고 수치만 나열한 고정 문장을 `fallback: true`로 돌려줌
+- `generate`: OX는 모델에게 자료와 맞는 문장과 사실 하나만 바꾼 틀린 문장을 함께 받고, AI 서비스가 둘 중 하나를 무작위로 골라 `answer`를 O 또는 X로 정함. 모델이 정답을 O로 몰아 내는 것을 막기 위함(AI PR #17, 2026-11-14). 응답 형식은 그대로임
 - 모델: OpenAI API(gpt-5.4-mini, 서버 환경 변수 `OPENAI_MODEL`)만 씀. 로컬 모델(Ollama)과 로컬에서 OpenAI로 넘어가는 전환 경로는 2026-11-11에 폐기함(AI #13). 키나 모델이 비어 있으면 `/internal/v1/health`는 `ok: false`, 나머지는 `502 llm_unavailable`
 
 ## 처리 흐름
@@ -174,7 +138,6 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 3. FE  GET /materials                 → 진행 상태 표시
 4. FE  GET /questions                 → 기기에 문제 저장 (이후 카드는 오프라인으로 표시)
 5. FE  카드 표시, 풀이                → 단답은 기기에서 글자 비교로 채점(서버 호출 없음), 재출제는 기기가 계산. 결과는 POST /answers 로 전송 (모아서 배치)
-6. FE  하루 1회 POST /usage/daily, GET /advice/today
 ```
 
 ## 확정한 것 (2026-11-04, BE·AI 담당 결정)
@@ -199,6 +162,11 @@ BE #4, AI #10, DOCS #4 리뷰에서 정한 내용이며, 위 본문에 반영함
 - 한 번에 올린 파일은 모두 같은 학습 주제에 연결하므로 `POST /materials` 응답의 자료 순서는 중요하지 않음
 - 모르는 `type`의 문제는 FE가 버리고, 응답의 모르는 JSON 필드는 무시함. `accepted`와 `page`는 생략할 수 있음
 - 429 중 `rate_limited`는 다시 시도하지 않고 실패로 처리함. `too_many_materials`와 5xx, 네트워크 오류는 최대 3번까지 다시 시도함
+
+## 만들지 않기로 한 것 (2026-11-13)
+
+- 오답노트(`GET /review`), 시청 기록 집계(`POST /usage/daily`), 오늘의 한마디 조언(`GET /advice/today`, `/internal/v1/advice`). 앱이 쓰지 않아 서버에서도 지움(BE PR #18, AI PR #17)
+- 감지 대상은 안드로이드 YouTube 쇼츠만. 인스타그램 릴스는 다루지 않음
 
 ## 아직 정해지지 않은 것
 
