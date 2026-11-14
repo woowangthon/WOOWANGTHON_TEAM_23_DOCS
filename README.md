@@ -39,4 +39,4 @@
 
 ## 시연 영상
 
-TBD
+https://youtu.be/5d_xGprt8Pw?si=_EexLhauQSWloFns
