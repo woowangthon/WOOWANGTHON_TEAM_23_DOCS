@@ -96,6 +96,8 @@ AI 레포(`app/prompts.py`)가 만드는 형식을 그대로 따름. 여기에 B
 | `/api/v1/questions/{id}/grade` | POST | `{ "userAnswer": "페이징" }` (단답만). AI를 부르지 않고 `answer`와 `accepted`에 글자로만 비교함(공백·대소문자 무시). 기기 채점과 결과가 같으므로 FE는 호출하지 않아도 되고, 호환을 위해 남겨 둠 | `{ "correct": true, "by": "rule" }` `by`는 항상 `rule` | BE |
 | `/api/v1/answers` | POST | `{ "answers": [Answer] }` 배치. 한 번에 200개까지. 같은 `questionId`와 `answeredAt`의 기록은 한 번만 받으므로 전체를 다시 보내도 됨 | `{ "recorded": 3 }` (이미 받은 기록은 세지 않음) | BE |
 | `/api/v1/questions/{id}/report` | POST | `{ "reason": "wrong_answer" }` | `204` | BE |
+| `/api/v1/usage/daily` | POST | `{ "days": [UsageDay] }` 최근 날짜들의 하루 합계, 한 번에 14일까지. 같은 날은 덮어씀 | `{ "recorded": 1 }` | BE |
+| `/api/v1/advice/today` | GET | - | `{ "message": "...", "basedOn": "2026-11-13", "facts": { ... }, "fallback": false }`. 시청 기록이 없으면 `message`, `basedOn`, `facts`가 `null` | BE → AI |
 
 ### Answer (풀이 기록)
 
@@ -109,6 +111,29 @@ AI 레포(`app/prompts.py`)가 만드는 형식을 그대로 따름. 여기에 B
 
 `result`: `correct` / `wrong` / `skipped`. 풀이 기록은 새 문제 채우기(아래 규칙)에 씀. 틀린 문제를 언제 다시 낼지는 기기가 풀이 기록으로 계산하고(FE #14), BE는 틀린 문제를 `GET /questions`에 다시 내려주지 않음.
 
+### UsageDay (쇼츠 시청 기록 하루 합계)
+
+기기에 저장한 시청 기록(쇼츠에 들어와서 나갈 때까지 한 번)에서 **하루 합계만** 보냄. 영상 제목·채널·댓글·계정은 수집하지 않음. 날짜는 쇼츠에 들어온 날 기준.
+
+```json
+{
+  "date": "2026-11-13",
+  "sessionCount": 4,
+  "totalMinutes": 38,
+  "swipes": 210,
+  "cardsShown": 21,
+  "cardsAnswered": 15,
+  "cardsSkipped": 6,
+  "correct": 11,
+  "lateNightShare": 0.42,
+  "longestSessionMinutes": 22
+}
+```
+
+- `totalMinutes`: 화면 변화 사이 간격을 더한 시간. 2분 넘게 변화가 없으면 2분까지만 셈
+- `lateNightShare`: 그중 밤 12시~6시에 본 비중 (0~1)
+- 오늘의 한마디로 **무엇을 말할지**는 BE 규칙이 정하고, AI는 그 사실을 친구 말투 문장으로만 바꿈. 규칙은 아래 BE ↔ AI 규칙 참고
+
 ## BE ↔ AI (내부)
 
 AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보내고, 결과를 돌려받아 BE가 저장함.
@@ -117,6 +142,7 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 |---|---|---|---|---|
 | `/internal/v1/generate` | POST | `{ "text": "...", "avoid": ["이미 낸 문제 글자", ...] }` 약 2000자 조각 1개. `avoid`는 선택이며 같은 문제는 응답에서 뺌. 쪽수는 받지 않음 | `{ "questions": [GeneratedQuestion], "provider": "openai", "discarded": 1 }` | AI |
 | `/internal/v1/verify` | POST | `{ "question": GeneratedQuestion, "source": "..." }` | `{ "supported": true, "reason": "..." }` 근거만 보고 다시 풀어 정답 비교 | AI |
+| `/internal/v1/advice` | POST | `{ "facts": { "기준": "어제", "푼 카드": 9, "맞힌 카드": 7 } }` 규칙이 고른 사실 | `{ "message": "...", "fallback": false }` | AI |
 | `/internal/v1/health` | GET | - | `{ "ok": true, "provider": "openai" }` | AI |
 
 `GeneratedQuestion`은 위 Question에서 `id`, `materialId`, `page`를 뺀 것. BE가 저장할 때 `evidence`를 쪽(슬라이드)별 원문에서 찾아 `page`를 붙임.
@@ -128,6 +154,8 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 - `generate`: 근거 문장이 없거나 원문에 없는 문제는 AI가 버리고, 버린 개수를 `discarded`로 알림
 - `generate`: 단답 정답은 명사 하나로 출제하고(프롬프트 지시) 같은 대상의 다른 이름을 `accepted`에 넣음. 공백 제외 10자 초과나 문장 종결(~다)인 단답은 자동 검사에서 버림. 명사인지는 검사하지 않음 (단답 채점에 LLM을 쓰지 않으므로 출제 단계에서 정함)
 - `generate`: OX는 모델에게 자료와 맞는 문장과 사실 하나만 바꾼 틀린 문장을 함께 받고, AI 서비스가 둘 중 하나를 무작위로 골라 `answer`를 O 또는 X로 정함. 모델이 정답을 O로 몰아 내는 것을 막기 위함(AI PR #17, 2026-11-14). 응답 형식은 그대로임
+- 오늘의 한마디 규칙(BE `app/advice.py`): 최근 7일 중 어제 기록(없으면 가장 최근 날)을 씀. 다음 순서로 처음 맞는 사실 하나를 고름. 밤 12시 이후 비중 30% 이상이고 10분 이상 시청, 한 번에 20분 이상 이어 보기, 뜬 카드 3개 이상 중 절반 이상 건너뜀, 푼 카드가 있음(푼 카드와 맞힌 카드), 그 밖(시청 시간과 넘긴 횟수). 기준값은 임의로 정한 값
+- `advice`: 문장 속 숫자가 사실과 다르면 AI가 폐기하고 사실을 나열한 문장을 `fallback: true`로 돌려줌. BE는 기기마다 하루 한 번 만든 문장을 저장해 다시 주고, AI 호출이 실패하거나 `fallback`이면 저장하지 않음. 기기별 하루 3번까지 시도
 - 모델: OpenAI API(gpt-5.4-mini, 서버 환경 변수 `OPENAI_MODEL`)만 씀. 로컬 모델(Ollama)과 로컬에서 OpenAI로 넘어가는 전환 경로는 2026-11-11에 폐기함(AI #13). 키나 모델이 비어 있으면 `/internal/v1/health`는 `ok: false`, 나머지는 `502 llm_unavailable`
 
 ## 처리 흐름
@@ -138,6 +166,7 @@ AI는 상태 없는 서비스. 요청에 필요한 정보를 모두 담아 보�
 3. FE  GET /materials                 → 진행 상태 표시
 4. FE  GET /questions                 → 기기에 문제 저장 (이후 카드는 오프라인으로 표시)
 5. FE  카드 표시, 풀이                → 단답은 기기에서 글자 비교로 채점(서버 호출 없음), 재출제는 기기가 계산. 결과는 POST /answers 로 전송 (모아서 배치)
+6. FE  홈을 열 때 POST /usage/daily, GET /advice/today → BE: 규칙으로 사실 고르기 → AI: 문장으로 바꾸기
 ```
 
 ## 확정한 것 (2026-11-04, BE·AI 담당 결정)
@@ -165,7 +194,8 @@ BE #4, AI #10, DOCS #4 리뷰에서 정한 내용이며, 위 본문에 반영함
 
 ## 만들지 않기로 한 것 (2026-11-13)
 
-- 오답노트(`GET /review`), 시청 기록 집계(`POST /usage/daily`), 오늘의 한마디 조언(`GET /advice/today`, `/internal/v1/advice`). 앱이 쓰지 않아 서버에서도 지움(BE PR #18, AI PR #17)
+- 오답노트(`GET /review`). 앱이 쓰지 않아 서버에서도 지움(BE PR #18)
+- 시청 기록과 오늘의 한마디는 11/13에 뺐다가 11/14에 다시 만들기로 함(위 본문에 반영)
 - 감지 대상은 안드로이드 YouTube 쇼츠만. 인스타그램 릴스는 다루지 않음
 
 ## 아직 정해지지 않은 것
